@@ -6,6 +6,7 @@ mod dateselect;
 #[cfg(feature = "editor")]
 mod editor;
 mod multiselect;
+#[cfg(feature = "one-liners")]
 mod one_liners;
 mod password;
 mod prompt;

@@ -19,6 +19,7 @@ use super::Terminal;
 
 pub struct CrosstermTerminal<'a> {
     io: Io<'a, Stderr>,
+    raw_mode: bool,
 }
 
 pub struct CrosstermKeyReader;
@@ -47,13 +48,19 @@ impl<'a> CrosstermTerminal<'a> {
 
         Ok(Self {
             io: Io::Owned(stderr()),
+            raw_mode: true,
         })
     }
 
-    pub fn new_with_writer(writer: &'a mut dyn Write) -> Self {
-        Self {
-            io: Io::Borrowed(writer),
+    pub fn new_with_writer(writer: &'a mut dyn Write, raw_mode: bool) -> InquireResult<Self> {
+        if raw_mode {
+            terminal::enable_raw_mode()?;
         }
+
+        Ok(Self {
+            io: Io::Borrowed(writer),
+            raw_mode,
+        })
     }
 
     fn get_writer(&mut self) -> &mut dyn Write {
@@ -190,10 +197,9 @@ impl Terminal for CrosstermTerminal<'_> {
 impl Drop for CrosstermTerminal<'_> {
     fn drop(&mut self) {
         let _unused = self.flush();
-        let _unused = match self.io {
-            Io::Owned(_) => terminal::disable_raw_mode(),
-            Io::Borrowed(_) => Ok(()),
-        };
+        if self.raw_mode {
+            let _unused = terminal::disable_raw_mode();
+        }
     }
 }
 
@@ -337,7 +343,7 @@ mod test {
         let mut buf = Vec::new();
 
         {
-            let mut terminal = CrosstermTerminal::new_with_writer(&mut buf);
+            let mut terminal = CrosstermTerminal::new_with_writer(&mut buf, false).unwrap();
             terminal.write("testing ").unwrap();
             terminal.write("writing ").unwrap();
             terminal.flush().unwrap();
@@ -353,7 +359,7 @@ mod test {
         let mut buf = Vec::new();
 
         {
-            let mut terminal = CrosstermTerminal::new_with_writer(&mut buf);
+            let mut terminal = CrosstermTerminal::new_with_writer(&mut buf, false).unwrap();
 
             terminal.set_attributes(Attributes::BOLD).unwrap();
             terminal.set_attributes(Attributes::ITALIC).unwrap();
@@ -373,7 +379,7 @@ mod test {
         let mut buf = Vec::new();
 
         {
-            let mut terminal = CrosstermTerminal::new_with_writer(&mut buf);
+            let mut terminal = CrosstermTerminal::new_with_writer(&mut buf, false).unwrap();
 
             terminal
                 .set_attributes(Attributes::BOLD | Attributes::ITALIC | Attributes::BOLD)
@@ -389,7 +395,7 @@ mod test {
     fn fg_color_management() {
         let mut buf = Vec::new();
         {
-            let mut terminal = CrosstermTerminal::new_with_writer(&mut buf);
+            let mut terminal = CrosstermTerminal::new_with_writer(&mut buf, false).unwrap();
 
             terminal.set_fg_color(Color::LightRed).unwrap();
             terminal.reset_fg_color().unwrap();
@@ -409,7 +415,7 @@ mod test {
         let mut buf = Vec::new();
 
         {
-            let mut terminal = CrosstermTerminal::new_with_writer(&mut buf);
+            let mut terminal = CrosstermTerminal::new_with_writer(&mut buf, false).unwrap();
 
             terminal.set_bg_color(Color::LightRed).unwrap();
             terminal.reset_bg_color().unwrap();

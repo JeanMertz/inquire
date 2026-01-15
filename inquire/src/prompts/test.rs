@@ -23,6 +23,6 @@ pub fn fake_backend<'a>(
     buf: &'a mut dyn Write,
     input: Vec<Key>,
 ) -> Backend<'static, impl InputReader, CrosstermTerminal<'a>> {
-    let output = CrosstermTerminal::new_with_writer(buf);
+    let output = CrosstermTerminal::new_with_writer(buf, false).unwrap();
     Backend::new(input.into_iter(), output, RenderConfig::default()).unwrap()
 }

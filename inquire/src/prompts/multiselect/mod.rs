@@ -184,6 +184,29 @@ where
             DEFAULT_MATCHER.fuzzy_match(string_value, input)
         };
 
+    /// Default scoring function, which will create a score for the current option using the input value.
+    /// The return will be sorted in Descending order, leaving options with None as a score.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use inquire::MultiSelect;
+    ///
+    /// let scorer = MultiSelect::<&str>::DEFAULT_SCORER;
+    /// assert_eq!(None,     scorer("sa", &"New York",      "New York",      0));
+    /// assert_eq!(Some(49), scorer("sa", &"Sacramento",    "Sacramento",    1));
+    /// assert_eq!(Some(35), scorer("sa", &"Kansas",        "Kansas",        2));
+    /// assert_eq!(Some(35), scorer("sa", &"Mesa",          "Mesa",          3));
+    /// assert_eq!(None,     scorer("sa", &"Phoenix",       "Phoenix",       4));
+    /// assert_eq!(None,     scorer("sa", &"Philadelphia",  "Philadelphia",  5));
+    /// assert_eq!(Some(49), scorer("sa", &"San Antonio",   "San Antonio",   6));
+    /// assert_eq!(Some(49), scorer("sa", &"San Diego",     "San Diego",     7));
+    /// assert_eq!(None,     scorer("sa", &"Dallas",        "Dallas",        8));
+    /// assert_eq!(Some(49), scorer("sa", &"San Francisco", "San Francisco", 9));
+    /// assert_eq!(None,     scorer("sa", &"Austin",        "Austin",        10));
+    /// assert_eq!(None,     scorer("sa", &"Jacksonville",  "Jacksonville",  11));
+    /// assert_eq!(Some(49), scorer("sa", &"San Jose",      "San Jose",      12));
+    /// ```
     #[cfg(not(feature = "fuzzy"))]
     pub const DEFAULT_SCORER: Scorer<'a, T> =
         &|input, _option, string_value, _idx| -> Option<i64> {

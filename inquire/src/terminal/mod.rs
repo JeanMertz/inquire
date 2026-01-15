@@ -129,7 +129,7 @@ pub fn get_default_terminal_with_writer<'a>(
     #[cfg(feature = "crossterm")]
     return Ok((
         crossterm::CrosstermKeyReader::new(),
-        crossterm::CrosstermTerminal::<'a>::new_with_writer(writer),
+        crossterm::CrosstermTerminal::<'a>::new_with_writer(writer, true)?,
     ));
 
     #[cfg(all(feature = "termion", not(feature = "crossterm")))]
