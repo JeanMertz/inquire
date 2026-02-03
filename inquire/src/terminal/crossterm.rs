@@ -54,6 +54,8 @@ impl<'a> CrosstermTerminal<'a> {
 
     pub fn new_with_writer(writer: &'a mut dyn Write, raw_mode: bool) -> InquireResult<Self> {
         if raw_mode {
+            // Flush first, since we'll be switching to raw mode.
+            writer.flush()?;
             terminal::enable_raw_mode()?;
         }
 
