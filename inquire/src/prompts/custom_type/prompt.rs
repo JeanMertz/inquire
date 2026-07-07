@@ -131,9 +131,15 @@ where
         };
 
         // Check if we should auto-submit after this input change
-        if self.submit_on_valid_parse {
-            // Try to parse and validate the current input
-            if let Ok(answer) = self.get_final_answer() {
+        //
+        // Deliberately parse the raw input instead of calling
+        // `get_final_answer`: that helper falls back to the default when the
+        // buffer is empty, which would auto-submit the default as soon as
+        // editing empties the buffer (e.g. typing an invalid character and
+        // backspacing it away). Choosing the default must remain an explicit
+        // act (pressing Enter on an empty buffer, handled by `submit`).
+        if self.submit_on_valid_parse && !self.input.content().is_empty() {
+            if let Ok(answer) = (self.parser)(self.input.content()) {
                 if matches!(self.validate_current_answer(&answer)?, Validation::Valid) {
                     return Ok(ActionResult::Submit);
                 }
