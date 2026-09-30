@@ -24,6 +24,25 @@ use self::prompt::TextPrompt;
 
 const DEFAULT_HELP_MESSAGE_WITH_AC: &str = "↑↓ to move, tab to autocomplete, enter to submit";
 
+/// The answer to a [`Text`] prompt, and whether it is the prompt's default.
+///
+/// Returned by [`Text::raw_prompt`] and [`Text::raw_prompt_with_writer`].
+/// A user who submits an empty input answers with the default, and one who
+/// types the default's text answers with what they typed: the two have the
+/// same [`value`](Self::value) and differ in [`is_default`](Self::is_default).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TextAnswer {
+    /// The answer, exactly as [`Text::prompt`] would return it.
+    pub value: String,
+
+    /// Whether the answer is the prompt's default, submitted by leaving the
+    /// input empty.
+    ///
+    /// Always `false` for a prompt without a default, and for an answer taken
+    /// from a highlighted autocompletion suggestion.
+    pub is_default: bool,
+}
+
 /// Standard text prompt that returns the user string input.
 ///
 /// This is the standard the standard kind of prompt you would expect from a library like this one. It displays a message to the user, prompting them to type something back. The user's input is then stored in a `String` and returned to the prompt caller.
@@ -290,9 +309,7 @@ impl<'a, 'b> Text<'a, 'b> {
     /// prompt. See [`prompt_with_writer`](Self::prompt_with_writer) for more
     /// details.
     pub fn prompt(self) -> InquireResult<String> {
-        let (input_reader, terminal) = get_default_terminal()?;
-        let mut backend = Backend::new(input_reader, terminal, self.render_config)?;
-        self.prompt_with_backend(&mut backend)
+        self.raw_prompt().map(|answer| answer.value)
     }
 
     /// Parses the provided behavioral and rendering options and prompts
@@ -302,15 +319,55 @@ impl<'a, 'b> Text<'a, 'b> {
     /// default writer is [`std::io::stderr`], but any other [`std::io::Write`]
     /// implementation can be used.
     pub fn prompt_with_writer(self, writer: &mut dyn Write) -> InquireResult<String> {
-        let (input_reader, terminal) = get_default_terminal_with_writer(writer)?;
-        let mut backend = Backend::new(input_reader, terminal, self.render_config)?;
-        self.prompt_with_backend(&mut backend)
+        self.raw_prompt_with_writer(writer)
+            .map(|answer| answer.value)
     }
 
+    /// Parses the provided behavioral and rendering options and prompts
+    /// the CLI user for input according to the defined rules.
+    ///
+    /// This method uses [`std::io::stderr`] as the default writer for the
+    /// prompt. See [`raw_prompt_with_writer`](Self::raw_prompt_with_writer) for
+    /// more details.
+    ///
+    /// Returns a [`TextAnswer`], which also says whether the answer is the
+    /// prompt's default.
+    pub fn raw_prompt(self) -> InquireResult<TextAnswer> {
+        let (input_reader, terminal) = get_default_terminal()?;
+        let mut backend = Backend::new(input_reader, terminal, self.render_config)?;
+        self.raw_prompt_with_backend(&mut backend)
+    }
+
+    /// Parses the provided behavioral and rendering options and prompts
+    /// the CLI user for input according to the defined rules.
+    ///
+    /// This method allows for a custom writer to be used for the prompt. The
+    /// default writer is [`std::io::stderr`], but any other [`std::io::Write`]
+    /// implementation can be used.
+    ///
+    /// Returns a [`TextAnswer`], which also says whether the answer is the
+    /// prompt's default.
+    pub fn raw_prompt_with_writer(self, writer: &mut dyn Write) -> InquireResult<TextAnswer> {
+        let (input_reader, terminal) = get_default_terminal_with_writer(writer)?;
+        let mut backend = Backend::new(input_reader, terminal, self.render_config)?;
+        self.raw_prompt_with_backend(&mut backend)
+    }
+
+    // Only the tests take the answer without the default flag through a
+    // backend; they are compiled with the same gate as the `test` module.
+    #[cfg(all(test, feature = "crossterm"))]
     pub(crate) fn prompt_with_backend<B: TextBackend>(
         self,
         backend: &mut B,
     ) -> InquireResult<String> {
+        self.raw_prompt_with_backend(backend)
+            .map(|answer| answer.value)
+    }
+
+    pub(crate) fn raw_prompt_with_backend<B: TextBackend>(
+        self,
+        backend: &mut B,
+    ) -> InquireResult<TextAnswer> {
         TextPrompt::from(self).prompt(backend)
     }
 }

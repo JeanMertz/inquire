@@ -1,4 +1,4 @@
-use super::Text;
+use super::{Text, TextAnswer};
 use crate::ui::{Key, KeyModifiers};
 use crate::validator::{ErrorMessage, Validation};
 
@@ -27,6 +27,20 @@ macro_rules! text_test {
             let mut backend = crate::prompts::test::fake_backend(&mut buf, $input);
 
             let ans = $prompt.prompt_with_backend(&mut backend).unwrap();
+
+            assert_eq!($output, ans);
+        }
+    };
+}
+
+macro_rules! raw_text_test {
+    ($name:ident,$input:expr,$output:expr,$prompt:expr) => {
+        #[test]
+        fn $name() {
+            let mut buf = Vec::new();
+            let mut backend = crate::prompts::test::fake_backend(&mut buf, $input);
+
+            let ans = $prompt.raw_prompt_with_backend(&mut backend).unwrap();
 
             assert_eq!($output, ans);
         }
@@ -111,4 +125,49 @@ text_test!(
         len if len > 5 && len < 10 => Ok(Validation::Valid),
         _ => Ok(Validation::Invalid(ErrorMessage::Default)),
     })
+);
+
+raw_text_test!(
+    an_empty_submission_answers_with_the_default,
+    vec![Key::Enter],
+    TextAnswer {
+        value: "main".to_owned(),
+        is_default: true,
+    },
+    Text::new("Branch?").with_default("main")
+);
+
+raw_text_test!(
+    typing_the_default_is_not_accepting_it,
+    text_to_events!("main\n"),
+    TextAnswer {
+        value: "main".to_owned(),
+        is_default: false,
+    },
+    Text::new("Branch?").with_default("main")
+);
+
+raw_text_test!(
+    an_empty_submission_without_a_default_is_not_a_default,
+    vec![Key::Enter],
+    TextAnswer {
+        value: String::new(),
+        is_default: false,
+    },
+    Text::new("Branch?")
+);
+
+raw_text_test!(
+    input_cleared_back_to_empty_answers_with_the_default,
+    {
+        let mut events = text_to_events!("x");
+        events.push(Key::Backspace);
+        events.push(Key::Enter);
+        events
+    },
+    TextAnswer {
+        value: "main".to_owned(),
+        is_default: true,
+    },
+    Text::new("Branch?").with_default("main")
 );

@@ -13,7 +13,9 @@ use crate::{
     Autocomplete, InquireError, Text,
 };
 
-use super::{action::TextPromptAction, config::TextConfig, DEFAULT_HELP_MESSAGE_WITH_AC};
+use super::{
+    action::TextPromptAction, config::TextConfig, TextAnswer, DEFAULT_HELP_MESSAGE_WITH_AC,
+};
 
 pub struct TextPrompt<'a, 'b> {
     message: &'a str,
@@ -131,6 +133,18 @@ impl<'a, 'b> TextPrompt<'a, 'b> {
         }
     }
 
+    /// The default, when the answer to submit now is the default.
+    ///
+    /// That is an empty input with no suggestion highlighted: a highlighted
+    /// suggestion is taken as the answer instead.
+    fn default_answer(&self) -> Option<&'a str> {
+        if self.get_highlighted_suggestion().is_some() || !self.input.content().is_empty() {
+            return None;
+        }
+
+        self.default
+    }
+
     fn get_current_answer(&self) -> &str {
         // If there is a highlighted suggestion, assume user wanted it as
         // the answer.
@@ -139,10 +153,8 @@ impl<'a, 'b> TextPrompt<'a, 'b> {
         }
 
         // Empty input with default values override any validators.
-        if self.input.content().is_empty() {
-            if let Some(val) = self.default {
-                return val;
-            }
+        if let Some(val) = self.default_answer() {
+            return val;
         }
 
         self.input.content()
@@ -167,7 +179,7 @@ where
 {
     type Config = TextConfig;
     type InnerAction = TextPromptAction;
-    type Output = String;
+    type Output = TextAnswer;
 
     fn message(&self) -> &str {
         self.message
@@ -177,17 +189,20 @@ where
         &self.config
     }
 
-    fn format_answer(&self, answer: &String) -> String {
-        (self.formatter)(answer)
+    fn format_answer(&self, answer: &TextAnswer) -> String {
+        (self.formatter)(&answer.value)
     }
 
     fn setup(&mut self) -> InquireResult<()> {
         self.update_suggestions()
     }
 
-    fn submit(&mut self) -> InquireResult<Option<String>> {
+    fn submit(&mut self) -> InquireResult<Option<TextAnswer>> {
         let result = match self.validate_current_answer()? {
-            Validation::Valid => Some(self.get_current_answer().to_owned()),
+            Validation::Valid => Some(TextAnswer {
+                value: self.get_current_answer().to_owned(),
+                is_default: self.default_answer().is_some(),
+            }),
             Validation::Invalid(msg) => {
                 self.error = Some(msg);
                 None
