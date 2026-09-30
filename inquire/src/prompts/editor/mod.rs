@@ -236,6 +236,8 @@ impl<'a> Editor<'a> {
     /// default writer is [`std::io::stderr`], but any other [`std::io::Write`]
     /// implementation can be used.
     pub fn prompt_with_writer(self, writer: &mut dyn Write) -> InquireResult<String> {
+        // Flush first, since we'll be switching to ak0wwjjjj
+        writer.flush()?;
         let (input_reader, terminal) = get_default_terminal_with_writer(writer)?;
         let mut backend = Backend::new(input_reader, terminal, self.render_config)?;
         self.prompt_with_backend(&mut backend)
